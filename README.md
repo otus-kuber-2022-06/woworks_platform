@@ -13,3 +13,10 @@ woworks Platform repository
 
 ## kubernetes-security
 - создал несколько ServiceAccount-ов, Role-ей, RoleBinding и ClusterRoleBinding-ов
+
+## kubernetes-networks
+- создал deployment для web
+- включил ipvs режим minikube
+- добавил ClusterIP и LoadBalancer сервисы
+- создал metallb в minikube кластере
+- создал ingress
