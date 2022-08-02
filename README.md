@@ -20,3 +20,8 @@ woworks Platform repository
 - добавил ClusterIP и LoadBalancer сервисы
 - создал metallb в minikube кластере
 - создал ingress
+
+## kubernetes-volumes
+- создал statefulset c Minio
+- создал headless service для доступа
+- создал secret и настроил использование данных из secret-а в statefulSet-е
