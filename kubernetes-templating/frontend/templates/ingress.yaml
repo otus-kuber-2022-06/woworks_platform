@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/acme-challenge-type: http01
+    cert-manager.io/issuer: letsencrypt-production
+    ingress.kubernetes.io/proxy-body-size: "0"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "true"
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    meta.helm.sh/release-name: frontend
+    meta.helm.sh/release-namespace: hipster-shop
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  labels:
+    app: frontend
+    app.kubernetes.io/managed-by: Helm
+    chart: frontend
+    heritage: Helm
+    release: frontend
+  name: frontend-ingress
+  namespace: hipster-shop
+spec:
+  rules:
+    - host: shop.34.121.218.17.nip.io
+      http:
+        paths:
+          - backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+            path: /
+            pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - shop.34.121.218.17.nip.io
+      secretName: shop.34.121.218.17.nip.io.secret
+status:
+  loadBalancer:
+    ingress:
+      - ip: 34.121.218.17

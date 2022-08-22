@@ -25,3 +25,13 @@ woworks Platform repository
 - создал statefulset c Minio
 - создал headless service для доступа
 - создал secret и настроил использование данных из secret-а в statefulSet-е
+
+## kubernetes-templating
+- зарегистрировался на Google Cloud Platform и создал там кластер
+- установил helm 3
+- установил nginx-ingress чарт
+- установил cert-manager чарт
+- установил chartmuseum
+- установил harbor
+- cоздал свой helm chartchart - hipster-shop и frontend
+- c помощью kubecfg создал манифесты services.jsonnet
