@@ -1,0 +1,16 @@
+# issuer-lets-encrypt-production.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-production
+  namespace: chartmuseum
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: guijseu674@gmail.com # ❗ Replace this with your email address
+    privateKeySecretRef:
+      name: letsencrypt-production
+    solvers:
+      - http01:
+          ingress:
+            name: chartmuseum
