@@ -15,5 +15,5 @@ spec:
       serviceAccountName: mysql-operator
       containers:
         - name: operator
-          image: "wenger23/mysql-operator:1.1"
+          image: "aslastin/otus-2022-06-mysql-operator"
           imagePullPolicy: "Always"
