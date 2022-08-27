@@ -35,3 +35,22 @@ woworks Platform repository
 - установил harbor
 - cоздал свой helm chartchart - hipster-shop и frontend
 - c помощью kubecfg создал манифесты services.jsonnet
+
+
+
+## kubernetes-monitoring
+- собрал образ nginx с stub_status
+- установил prometheus с помощью оператора
+- создал deployment с кастомным nginx образом и сайд-контейнером nginx-prometheus-exporter
+- создал service и servicemonitor
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml
+kubectl get crds
+kubectl get deploy 
+kubectl apply -f rbac.yaml
+kubectl describe clusterrolebinding prometheus
+kubectl apply -f prometheus.yaml
+kubectl port-forward svc/prometheus-operated 9090:9090
+kubectl apply -f service-monitor.yaml
+```
