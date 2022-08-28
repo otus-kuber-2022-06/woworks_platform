@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-server-status
+  labels:
+    app: nginx-server-status
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-server-status
+  template:
+    metadata:
+      labels:
+        app: nginx-server-status
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9113'
+    spec:
+      containers:
+        - name: nginx
+          image: aslastin/otus-2022-06-nginx-server-status
+          ports:
+            - containerPort: 80
+        - name: nginx-exporter
+          image: 'nginx/nginx-prometheus-exporter:0.10.0'
+          args:
+            - '-nginx.scrape-uri=http://localhost/basic_status'
+          ports:
+            - containerPort: 9113
