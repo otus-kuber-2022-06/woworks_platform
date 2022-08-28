@@ -25,7 +25,7 @@ def render_template(filename, vars_dict):
     env = Environment(loader=FileSystemLoader('./templates'))
     template = env.get_template(filename)
     yaml_manifest = template.render(vars_dict)
-    json_manifest = yaml.load(yaml_manifest)
+    json_manifest = yaml.load(yaml_manifest, Loader=yaml.Loader)
     return json_manifest
 
 
