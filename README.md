@@ -39,7 +39,6 @@ woworks Platform repository
 
 
 ## kubernetes-operators
-
 - создал CustomResource и CustomResourceDefinition для mysql оператора
 - создал часть логики mysql оператора при помощи python KOPF
 - собрал образ, запушил его в docker hub и сделал деплой оператора
@@ -63,4 +62,19 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 |  2 | some data-2 |
 +----+-------------+
 
+## kubernetes-monitoring
+- собрал образ nginx с stub_status
+- установил prometheus с помощью оператора
+- создал deployment с кастомным nginx образом и сайд-контейнером nginx-prometheus-exporter
+- создал service и servicemonitor
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml
+kubectl get crds
+kubectl get deploy 
+kubectl apply -f rbac.yaml
+kubectl describe clusterrolebinding prometheus
+kubectl apply -f prometheus.yaml
+kubectl port-forward svc/prometheus-operated 9090:9090
+kubectl apply -f service-monitor.yaml
 ```
