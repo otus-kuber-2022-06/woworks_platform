@@ -38,6 +38,30 @@ woworks Platform repository
 
 
 
+## kubernetes-operators
+- создал CustomResource и CustomResourceDefinition для mysql оператора
+- создал часть логики mysql оператора при помощи python KOPF
+- собрал образ, запушил его в docker hub и сделал деплой оператора
+- исправил ошибки в mysql-operator.py
+
+
+```shell
+kubectl get jobs
+NAME                         COMPLETIONS   DURATION   AGE
+backup-mysql-instance-job    1/1           5s         3m4s
+restore-mysql-instance-job   1/1           20s        2m25s
+```
+
+```shell
+kubectl exec -it $MYSQLPOD -- mysql -potuspassword -e "select * from test;" otus-database
+mysql: [Warning] Using a password on the command line interface can be insecure.
++----+-------------+
+| id | name        |
++----+-------------+
+|  1 | some data   |
+|  2 | some data-2 |
++----+-------------+
+
 ## kubernetes-monitoring
 - собрал образ nginx с stub_status
 - установил prometheus с помощью оператора
