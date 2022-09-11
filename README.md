@@ -78,3 +78,175 @@ kubectl apply -f prometheus.yaml
 kubectl port-forward svc/prometheus-operated 9090:9090
 kubectl apply -f service-monitor.yaml
 ```
+
+## kubernetes-gitops
+- установил flux и flagger в google cloud k8s cluster
+- инфраструктурный репозиторий - https://gitlab.com/otus-kuber-artiom/microservices-demo
+- вывод комманды **kubectl get canaries -n microservices-demo**
+```shell
+aslastin@aslastin-u7510:~$ kubectl get canaries -n microservices-demo
+W0911 11:48:44.815455   20296 gcp.go:120] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.25+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+NAME       STATUS      WEIGHT   LASTTRANSITIONTIME
+frontend   Succeeded   0        2022-09-08T22:10:27Z
+```
+- вывод команды **kubectl describe canary -n microservices-demo frontend**
+```shell
+aslastin@aslastin-u7510:~$ kubectl describe canary -n microservices-demo frontend
+W0911 12:01:00.217068   22931 gcp.go:120] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.25+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+Name:         frontend
+Namespace:    microservices-demo
+Labels:       app.kubernetes.io/managed-by=Helm
+Annotations:  helm.fluxcd.io/antecedent: microservices-demo:helmrelease/frontend
+              meta.helm.sh/release-name: frontend
+              meta.helm.sh/release-namespace: microservices-demo
+API Version:  flagger.app/v1beta1
+Kind:         Canary
+Metadata:
+  Creation Timestamp:  2022-09-08T21:42:42Z
+  Generation:          3
+  Managed Fields:
+    API Version:  flagger.app/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:spec:
+        .:
+        f:analysis:
+          .:
+          f:interval:
+          f:maxWeight:
+          f:stepWeight:
+        f:progressDeadlineSeconds:
+        f:service:
+          .:
+          f:gateways:
+          f:hosts:
+          f:port:
+          f:retries:
+            .:
+            f:attempts:
+            f:perTryTimeout:
+            f:retryOn:
+          f:targetPort:
+          f:trafficPolicy:
+            .:
+            f:tls:
+              .:
+              f:mode:
+        f:targetRef:
+          .:
+          f:apiVersion:
+          f:kind:
+          f:name:
+    Manager:      kubectl-create
+    Operation:    Update
+    Time:         2022-09-08T21:42:42Z
+    API Version:  flagger.app/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:status:
+        .:
+        f:canaryWeight:
+        f:conditions:
+        f:failedChecks:
+        f:iterations:
+        f:lastAppliedSpec:
+        f:lastPromotedSpec:
+        f:lastTransitionTime:
+        f:phase:
+        f:trackedConfigs:
+    Manager:      flagger
+    Operation:    Update
+    Subresource:  status
+    Time:         2022-09-08T21:43:27Z
+    API Version:  flagger.app/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .:
+          f:meta.helm.sh/release-name:
+          f:meta.helm.sh/release-namespace:
+        f:labels:
+          .:
+          f:app.kubernetes.io/managed-by:
+    Manager:      helm
+    Operation:    Update
+    Time:         2022-09-08T22:05:45Z
+    API Version:  flagger.app/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:spec:
+        f:analysis:
+          f:threshold:
+    Manager:      helm-operator
+    Operation:    Update
+    Time:         2022-09-08T22:06:45Z
+    API Version:  flagger.app/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:helm.fluxcd.io/antecedent:
+    Manager:         kubectl-annotate
+    Operation:       Update
+    Time:            2022-09-08T22:06:48Z
+  Resource Version:  4492249
+  UID:               865082b7-f354-4b36-a1a0-4bb74d160ecc
+Spec:
+  Analysis:
+    Interval:                 20s
+    Max Weight:               30
+    Step Weight:              10
+    Threshold:                7
+  Progress Deadline Seconds:  60
+  Service:
+    Gateways:
+      frontend
+    Hosts:
+      *
+    Port:  80
+    Retries:
+      Attempts:         3
+      Per Try Timeout:  1s
+      Retry On:         gateway-error,connect-failure,refused-stream
+    Target Port:        8080
+    Traffic Policy:
+      Tls:
+        Mode:  DISABLE
+  Target Ref:
+    API Version:  apps/v1
+    Kind:         Deployment
+    Name:         frontend
+Status:
+  Canary Weight:  0
+  Conditions:
+    Last Transition Time:  2022-09-11T08:55:27Z
+    Last Update Time:      2022-09-11T08:55:27Z
+    Message:               Canary analysis completed successfully, promotion finished.
+    Reason:                Succeeded
+    Status:                True
+    Type:                  Promoted
+  Failed Checks:           0
+  Iterations:              0
+  Last Applied Spec:       7455d6df44
+  Last Promoted Spec:      7455d6df44
+  Last Transition Time:    2022-09-11T08:55:27Z
+  Phase:                   Succeeded
+  Tracked Configs:
+Events:
+  Type     Reason  Age                    From     Message
+  ----     ------  ----                   ----     -------
+  Normal   Synced  8m14s (x2 over 2d10h)  flagger  New revision detected! Scaling up frontend.microservices-demo
+  Warning  Synced  7m54s (x2 over 2d10h)  flagger  canary deployment frontend.microservices-demo not ready: waiting for rollout to finish: 0 of 1 (readyThreshold 100%) updated replicas are available
+  Normal   Synced  7m34s (x3 over 2d10h)  flagger  Starting canary analysis for frontend.microservices-demo
+  Normal   Synced  7m34s (x3 over 2d10h)  flagger  Advance frontend.microservices-demo canary weight 10
+  Normal   Synced  7m14s (x3 over 2d10h)  flagger  Advance frontend.microservices-demo canary weight 20
+  Normal   Synced  6m54s (x2 over 2d10h)  flagger  Advance frontend.microservices-demo canary weight 30
+  Normal   Synced  6m34s (x2 over 2d10h)  flagger  Copying frontend.microservices-demo template spec to frontend-primary.microservices-demo
+  Warning  Synced  6m14s (x2 over 2d10h)  flagger  frontend-primary.microservices-demo not ready: waiting for rollout to finish: 1 old replicas are pending termination
+  Normal   Synced  5m54s (x2 over 2d10h)  flagger  Routing all traffic to primary
+  Normal   Synced  5m34s (x2 over 2d10h)  flagger  Promotion completed! Scaling down frontend.microservices-demo
+
+```
