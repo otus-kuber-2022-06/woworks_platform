@@ -250,3 +250,256 @@ Events:
   Normal   Synced  5m34s (x2 over 2d10h)  flagger  Promotion completed! Scaling down frontend.microservices-demo
 
 ```
+
+## kubernetes-vault
+- вывод helm status vault
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ helm status vault
+NAME: vault
+LAST DEPLOYED: Fri Sep 16 01:09:52 2022
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+NOTES:
+Thank you for installing HashiCorp Vault!
+
+Now that you have deployed Vault, you should look over the docs on using
+Vault with Kubernetes available here:
+
+https://www.vaultproject.io/docs/
+
+
+Your release is named vault. To learn more about the release, try:
+
+  $ helm status vault
+  $ helm get manifest vault
+
+```  
+- инициализация vault-а
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault operator init --key-shares=1 --key-threshold=1
+Unseal Key 1: puN2VGd/reVCtZ5kwMKRoXeF3EZQFImDwtoO/dyLqAk=
+
+Initial Root Token: hvs.v6TwSkKJaVo3Mzgu3W2WzLlQ
+
+Vault initialized with 1 key shares and a key threshold of 1. Please securely
+distribute the key shares printed above. When the Vault is re-sealed,
+restarted, or stopped, you must supply at least 1 of these keys to unseal it
+before it can start servicing requests.
+
+Vault does not store the generated root key. Without at least 1 keys to
+reconstruct the root key, Vault will remain permanently sealed!
+
+It is possible to generate new unseal keys, provided you have a quorum of
+existing unseal keys shares. See "vault operator rekey" for more information.
+
+```
+- вывод статуса vault-а после распечатывания подов
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault status
+Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false
+Total Shares    1
+Threshold       1
+Version         1.11.3
+Build Date      2022-08-26T10:27:10Z
+Storage Type    consul
+Cluster Name    vault-cluster-3431bbb2
+Cluster ID      7afad71d-40d7-919f-f19a-ab347d8f5356
+HA Enabled      true
+HA Cluster      https://vault-0.vault-internal:8201
+HA Mode         active
+Active Since    2022-09-15T22:16:29.100828563Z
+
+```
+- логин в vault
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault login
+Token (will be hidden): 
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                  Value
+---                  -----
+token                hvs.v6TwSkKJaVo3Mzgu3W2WzLlQ
+token_accessor       UckqOygf2XXwIF7XzNWGzWdS
+token_duration       ∞
+token_renewable      false
+token_policies       ["root"]
+identity_policies    []
+policies             ["root"]
+
+
+```
+
+- список авторизаций
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault auth list
+Path      Type     Accessor               Description
+----      ----     --------               -----------
+token/    token    auth_token_7d279ed8    token based credentials
+```
+
+- чтение секрета
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault read otus/otus-ro/config
+Key                 Value
+---                 -----
+refresh_interval    768h
+password            asajkjkahs
+username            otus
+
+```
+
+- обновленный список авторизаций
+```shell
+aslastin@aslastin-u7510:~/Documents/otus/vault-helm$ kubectl exec -it vault-0 -- vault auth list
+Path           Type          Accessor                    Description
+----           ----          --------                    -----------
+kubernetes/    kubernetes    auth_kubernetes_d9d25381    n/a
+token/         token         auth_token_7d279ed8         token based credentials
+
+```
+
+- Почему мы смогли записать otus-rw/config1 но не смогли otus-rw/config
+не хватает capability "update" для пути "otus/otus-rw/*"
+```shell
+path "otus/otus-rw/*" {
+    capabilities = ["read", "create", "update", "list"]
+}
+```
+
+- создание и отзыв сертификатов
+
+```shell
+aslastin@aslastin-u7510:~/IdeaProjects/woworks_platform/kubernetes-vault$ kubectl exec -it vault-0 -- vault write pki_int/issue/example-dot-ru common_name="gitlab.example.ru" ttl="24h"
+W0918 00:03:32.745287  464110 gcp.go:120] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.25+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+Key                 Value
+---                 -----
+ca_chain            [-----BEGIN CERTIFICATE-----
+MIIDnDCCAoSgAwIBAgIUKFb6JkRnFt/J8GzAASLtGquvhUIwDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAxMKZXhtYXBsZS5ydTAeFw0yMjA5MTcyMDU4NDNaFw0yNzA5
+MTYyMDU5MTNaMCwxKjAoBgNVBAMTIWV4YW1wbGUucnUgSW50ZXJtZWRpYXRlIEF1
+dGhvcml0eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANUOPRzdjnRu
+/1mUMgoTNZnU0iJm1SgWoFgXgdJVOy3bn9nbU6zOpZSPq8ApByBNH4tjbvgB65Bf
+dZZJQXPA2vaDGI80Ttg4GclTuaJTAQQJS6Akl/Swn2PzERhfc6vNo36zYARZzDCX
+SR1lXhK3xWsXFDR/I0LEvzhsLgvhkKjcr/eorvyppsavbilB3FBmVceGf8n+0SXK
+vW5D6GAoVtqx3tmAIOK9AajW/tTI+N4nZNgaQhI3X2MaB/a74d8H5VJMwZUjai5t
+sYCRAXVwsKJ64O7A34zq8SFED5aU0akCddl5kg6SC+vIZegPK1gp8cWQAIsA9OVL
+19Bxn3RRa9ECAwEAAaOBzDCByTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUw
+AwEB/zAdBgNVHQ4EFgQU/SegNWcyA3PofWs+NHeQDbFmzKwwHwYDVR0jBBgwFoAU
+pe/AeDfFpJ1GDjbqPvdZzn7mvxIwNwYIKwYBBQUHAQEEKzApMCcGCCsGAQUFBzAC
+hhtodHRwOi8vdmF1bHQ6ODIwMC92MS9wa2kvY2EwLQYDVR0fBCYwJDAioCCgHoYc
+aHR0cDovL3ZhdWx0OjgyMDAvdjEvcGtpL2NybDANBgkqhkiG9w0BAQsFAAOCAQEA
+ErHE0Te57PWvQFwHgJ15F9s/pN28tm8FdCqvlKQfiU9gXEhz1vhH72u9D11HiaCS
+BF7MGeaCeDLLgMIrbSwfioape/MtgAwjXWiLsPYjdGCGmtaDif2+3IhCi5UTLGvP
+C/1zTmvhhi8EdrWxM6wWHPkj77VGX4mJ6eGd1dZaCBBibdFPKmUV1KHUQpy8eC8a
+YZusM3Q5PSmkWxIgEXEavB9yGzgVsR2BOx3QLUTotzRAeVoBb4/u022YVNWdAaFk
+Eze0o+0D4u9TYELbR8AiMHuO/08mqOY/BH70iDwnv/q4knLgNhKoolUUmV5fuMu2
+/44JFsPH+NbYc+fW4U3QNw==
+-----END CERTIFICATE----- -----BEGIN CERTIFICATE-----
+MIIDMjCCAhqgAwIBAgIUAUMfXJNU6fi2no9/GZ8qWb42HrMwDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAxMKZXhtYXBsZS5ydTAeFw0yMjA5MTcyMDUyMzhaFw0zMjA5
+MTQyMDUzMDhaMBUxEzARBgNVBAMTCmV4bWFwbGUucnUwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCs6H/W8+Xg2YD5L20WZt1FL/9GYHutq5yY6l8+V6Ot
+/C+McSXdHAOBwSEeY46P8lap/dDTq4x4FjvZjAqA8gNqVYRPYS+DYR5U8w4AjBti
+oXaYeF+uI9yHRVzrJBP0U2XUUW01Cmsuz4Y0kOQtMqzEE2Gaw3TMDmMSuUNs2geS
+ohBmSsK2bsoZAL/tKpxeeXIHsp2WODaPQlaTanf3ozeHcwwuqNakuxZK24aIS3lc
+t2y9ajNnYJDWVHXnIaY9bgHbBu2l1SMQOh/9UQX22zZXoDThULvLVFQXnap8+7gQ
+gcPqZjRQJHT5MdGTYppGdOgpEDr7LYOUno75j82PlB4JAgMBAAGjejB4MA4GA1Ud
+DwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSl78B4N8WknUYO
+Nuo+91nOfua/EjAfBgNVHSMEGDAWgBSl78B4N8WknUYONuo+91nOfua/EjAVBgNV
+HREEDjAMggpleG1hcGxlLnJ1MA0GCSqGSIb3DQEBCwUAA4IBAQCjarXZDcpTZsSM
+duGAPPw0vwXtDmQ3tv97X8LK06N1yyLqtTPgslHU+h/kryQWmBZrKbPeLfNHUw9T
+suz9/dCB/qx4998LMSH8WWe8osIhjepIIRFR0GJ944R+Y4705c/TKpqzbjn2l0d3
+I46Xg+uctTE7ATi+ek+iagQOjZrdp869vykmSVh8N+7q1EEcghdAsBmMdPfTZnq5
+AI1d85Swdg9f9UNQTVcVjj6YjqR4Qq4P8h95tUJrc+rmo6Sk1/6j2lijhsSw0QsV
+PSMwKJfiUtQgCb/lHf9CCA3r7E5Oq1TIJUG0/1kxWAI8W+N8pQsK6JRwj2fFQ01L
+qi+P5DIm
+-----END CERTIFICATE-----]
+certificate         -----BEGIN CERTIFICATE-----
+MIIDZzCCAk+gAwIBAgIUM/CjYeBrLcTBFrQAfnfoiTPdDFAwDQYJKoZIhvcNAQEL
+BQAwLDEqMCgGA1UEAxMhZXhhbXBsZS5ydSBJbnRlcm1lZGlhdGUgQXV0aG9yaXR5
+MB4XDTIyMDkxNzIxMDMwNVoXDTIyMDkxODIxMDMzNFowHDEaMBgGA1UEAxMRZ2l0
+bGFiLmV4YW1wbGUucnUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDG
+L6wro+gbCfIEUbZGagEe6moqqlkXb5354oSQPGidAF+qzREkiMHm7tr+V6de480B
+aozF/ZSYvt2PP0DgpW5fOYb73TToEFOvqXWMwUAznzZMOV9AL1QL8fSrsqwilcsN
+j40rCPf6ddE9mzGXrkjnNcVttTM6tjTkDcVFlGy5MIrpu7/9Ylj1rZaZDvl0Vh52
+f2DU/WiRB+iTk3pokXYhGvSmAIGXdc4DeN5MaPtLi0ITt2Y7nWDnOo127K4SbmUU
+gSeVygMp0ZNhUK4dwYhixElfgcq3vionJk/DAGMzBkhYXn4GDl92YqQslcCLS/rz
+rL0LJ5BJt2VFrsc+R4PHAgMBAAGjgZAwgY0wDgYDVR0PAQH/BAQDAgOoMB0GA1Ud
+JQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNVHQ4EFgQU8yFQgz0CfxkNclIi
+RD/lzE7cZVswHwYDVR0jBBgwFoAU/SegNWcyA3PofWs+NHeQDbFmzKwwHAYDVR0R
+BBUwE4IRZ2l0bGFiLmV4YW1wbGUucnUwDQYJKoZIhvcNAQELBQADggEBAJKdJOQ7
+ti+EOx4CyOmmfukUxYJv+D7VWMfBGMP8FZNihgnGIFAzNdBH8BxIzL1tKD63tChv
+CfgKKZAOAVUj7GRmFgdHJK69jZcmeYjH2kQxpLyCyGW5RNa4fA7CiLs6CBnw5VKl
+GyhWYBvYmln4x3PVIAa2vf3OXcQg22DE4kzmu+GVg9WD0PWQzFhD5H2AytjVZ1eV
+1+sCyyUC7CRQxjUj+RvUod1eAWsAqb+2pnUGpxtyGsTQMRM7xoR91AKTcBWMMjec
+qSRTN0txqs1qCQ1UZfxSKNeP5eeZNEqb60dzGzbFDa9Ob2AGmlkEywj63sjddsGH
+3FZCylZHRugg7vE=
+-----END CERTIFICATE-----
+expiration          1663535014
+issuing_ca          -----BEGIN CERTIFICATE-----
+MIIDnDCCAoSgAwIBAgIUKFb6JkRnFt/J8GzAASLtGquvhUIwDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAxMKZXhtYXBsZS5ydTAeFw0yMjA5MTcyMDU4NDNaFw0yNzA5
+MTYyMDU5MTNaMCwxKjAoBgNVBAMTIWV4YW1wbGUucnUgSW50ZXJtZWRpYXRlIEF1
+dGhvcml0eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANUOPRzdjnRu
+/1mUMgoTNZnU0iJm1SgWoFgXgdJVOy3bn9nbU6zOpZSPq8ApByBNH4tjbvgB65Bf
+dZZJQXPA2vaDGI80Ttg4GclTuaJTAQQJS6Akl/Swn2PzERhfc6vNo36zYARZzDCX
+SR1lXhK3xWsXFDR/I0LEvzhsLgvhkKjcr/eorvyppsavbilB3FBmVceGf8n+0SXK
+vW5D6GAoVtqx3tmAIOK9AajW/tTI+N4nZNgaQhI3X2MaB/a74d8H5VJMwZUjai5t
+sYCRAXVwsKJ64O7A34zq8SFED5aU0akCddl5kg6SC+vIZegPK1gp8cWQAIsA9OVL
+19Bxn3RRa9ECAwEAAaOBzDCByTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUw
+AwEB/zAdBgNVHQ4EFgQU/SegNWcyA3PofWs+NHeQDbFmzKwwHwYDVR0jBBgwFoAU
+pe/AeDfFpJ1GDjbqPvdZzn7mvxIwNwYIKwYBBQUHAQEEKzApMCcGCCsGAQUFBzAC
+hhtodHRwOi8vdmF1bHQ6ODIwMC92MS9wa2kvY2EwLQYDVR0fBCYwJDAioCCgHoYc
+aHR0cDovL3ZhdWx0OjgyMDAvdjEvcGtpL2NybDANBgkqhkiG9w0BAQsFAAOCAQEA
+ErHE0Te57PWvQFwHgJ15F9s/pN28tm8FdCqvlKQfiU9gXEhz1vhH72u9D11HiaCS
+BF7MGeaCeDLLgMIrbSwfioape/MtgAwjXWiLsPYjdGCGmtaDif2+3IhCi5UTLGvP
+C/1zTmvhhi8EdrWxM6wWHPkj77VGX4mJ6eGd1dZaCBBibdFPKmUV1KHUQpy8eC8a
+YZusM3Q5PSmkWxIgEXEavB9yGzgVsR2BOx3QLUTotzRAeVoBb4/u022YVNWdAaFk
+Eze0o+0D4u9TYELbR8AiMHuO/08mqOY/BH70iDwnv/q4knLgNhKoolUUmV5fuMu2
+/44JFsPH+NbYc+fW4U3QNw==
+-----END CERTIFICATE-----
+private_key         -----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAxi+sK6PoGwnyBFG2RmoBHupqKqpZF2+d+eKEkDxonQBfqs0R
+JIjB5u7a/lenXuPNAWqMxf2UmL7djz9A4KVuXzmG+9006BBTr6l1jMFAM582TDlf
+QC9UC/H0q7KsIpXLDY+NKwj3+nXRPZsxl65I5zXFbbUzOrY05A3FRZRsuTCK6bu/
+/WJY9a2WmQ75dFYedn9g1P1okQfok5N6aJF2IRr0pgCBl3XOA3jeTGj7S4tCE7dm
+O51g5zqNduyuEm5lFIEnlcoDKdGTYVCuHcGIYsRJX4HKt74qJyZPwwBjMwZIWF5+
+Bg5fdmKkLJXAi0v686y9CyeQSbdlRa7HPkeDxwIDAQABAoIBADTapeoFjnMXlem8
++QWSY7YhAitavuPXKqRn2r60vZmRbfIZOocpybyS2uiV69cMnbHQ/rYWyLhrvp7j
+WaQPun2+09b7yY5SPF9OrEDbkQmzXkG500NE2/9Lidr4jZuzozF8pUNi4u9y2Fi7
+uOAg5OR0nLCDcKQpz7U6TvAdg1lntpaUMPkAFPgeFbbTB1cgBL1SMSxpajFZhQI/
+CH1VdUSaZyjDIawiPPTcovlSOHUBUWSzvqWICrCyqQAhUwL4AqjN1OS+n82AGr+9
+oc8eyLC0TyWvN8yFYwCA5rISt5GgIPB9vlPtvXlaRAflrJf+x/7TyMr22ljK+ae/
+4wzTZ4ECgYEA29Av/Aoxl5AzWjhE7Bcu9OeLXFqdtzX937wAJwkitriUz11MacLz
+y+a+XcB6LTzHcvxNVvLNYneRUBtERybV/omUTcuB1TZfD8EY8ipArwYkynBdsJSO
+x+clmeq5dO8l5hQ2n8L3WIgWRmi1owsmlG6kzSJ5Wshkq4paaanuPOECgYEA5tAJ
+NXJXEomrXUMLhZWGIqea5eLi1UJCvg7aQ8/zlkdWuOEWIjX/3lQDH9GMDuWFsyyM
+QVvBbnmK7MI9lFnXxNP6J5YlT8ie8w/398Ip4Mfahn35GyqjP5jLUbQqjNQQ22rB
+U8tV0BOX5SjTqHnbZ2750rEdcsOYlccGSRAybacCgYAaUovseqwFolcD7skSHJSa
+7z9ZB+DrF6QXLsQ16Hont2LakimcYKQhPrh9MZdv419e/aelSd4edIMKPLmoa5Yk
+rQT9a+lYRvKLSGxcU4L7cpjlRR9zDdcrSRrPm7QptJmtO65u40ILcAB63f8iTyuH
+ithhWEd//49Om3rIPHkzAQKBgAwrBYFC0OJSTa1x/maBdnvXOCxMZMb3YktgvxL6
+II5YnnLKsv8Et8OBzFReGLMkWIMUoyRC8RSg5bkLmHF8twpSXoq9uKPXIMIRonH2
+U3zdLGEQvRQ4kDinFnjtNZ0NBQJ8Q0rmmlSI4+YZ2+ay3eU7DYKVAcduFlo3DtbF
+OtNbAoGBALMrIs+/DGmiekm7ShDUH3Y+ZLQ1qD/oz5v2iVMCOW6sAyGZJ13hXY+T
+MidFlQcPfuhehS9vBOPQW2tEArrpyFi1nkiXR2dbo1eZYYDSnGeJ1UlSJCl28ZQr
+a0zLawofnAV31uFXP4mD5vf0LhsZIESEZ2QdSz8j8VbnkTFTHe+j
+-----END RSA PRIVATE KEY-----
+private_key_type    rsa
+serial_number       33:f0:a3:61:e0:6b:2d:c4:c1:16:b4:00:7e:77:e8:89:33:dd:0c:50
+aslastin@aslastin-u7510:~/IdeaProjects/woworks_platform/kubernetes-vault$ kubectl exec -it vault-0 -- vault write pki_int/revoke serial_number="33:f0:a3:61:e0:6b:2d:c4:c1:16:b4:00:7e:77:e8:89:33:dd:0c:50"
+W0918 00:04:08.910854  465663 gcp.go:120] WARNING: the gcp auth plugin is deprecated in v1.22+, unavailable in v1.25+; use gcloud instead.
+To learn more, consult https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
+Key                        Value
+---                        -----
+revocation_time            1663448651
+revocation_time_rfc3339    2022-09-17T21:04:11.0922095Z
+```
