@@ -251,6 +251,21 @@ Events:
 
 ```
 
+
+## kubernetes-logging
+- поднял кластер в gcp: 1 нода в дефолт пуле, 3 ноды в пуле infra
+- поднял HipsterShop 
+- установил elasticsearch, kibana и fluent-bit
+- установил ingress-controller
+- настроил отправку логов с подов ingress-controller-а в elastic c помощью fluent-bit
+- установил prometheus-operator для мониторинга elasticsearch
+- установил elasticsearch-exporter
+- добился отображения в Kibana логов nginx-ingress
+- настроил отображение запросов с разными статусами из nginx-ingress в разных графиках на одном dashboard
+- установил loki и promtail
+- настроил datasource loki в Grafana
+- создал Dashboard, на котором одновременно выведем метрики nginx-ingress, количество запросов к nginx-ingress в секунду и его логи
+
 ## kubernetes-vault
 - вывод helm status vault
 ```shell
@@ -503,3 +518,4 @@ Key                        Value
 revocation_time            1663448651
 revocation_time_rfc3339    2022-09-17T21:04:11.0922095Z
 ```
+
