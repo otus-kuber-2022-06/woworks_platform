@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: data-volume
       persistentVolumeClaim:
-        claimName: csi-pvc
+        claimName: storage-pvc

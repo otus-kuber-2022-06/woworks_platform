@@ -536,5 +536,5 @@ revocation_time_rfc3339    2022-09-17T21:04:11.0922095Z
 ## kubernetes-storage
 - установил HostPath Driver Plugin в кластер с помощью https://github.com/kubernetes-csi/csi-driver-host-path
 - создал StorageClass c именем csi-hostpath-sc
-- создал PVC с именем csi-pvc, у которого storageClassName: csi-hostpath-sc
-- создал Pod с который как Volume использует csi-pvc
+- создал PVC с именем storage-pvc, у которого storageClassName: csi-hostpath-sc
+- создал Pod с который как Volume использует storage-pvc
