@@ -538,3 +538,25 @@ revocation_time_rfc3339    2022-09-17T21:04:11.0922095Z
 - создал StorageClass c именем csi-hostpath-sc
 - создал PVC с именем storage-pvc, у которого storageClassName: csi-hostpath-sc
 - создал Pod с который как Volume использует storage-pvc
+
+## kubernetes-debug
+- kubectl debug не нужно устанавливать с варсии 1.20, но это уже другой дебаг
+- установил DaemonSet из agent_daemonset.yml c image: aylei/debug-agent:0.0.1
+- убедился что strace -c -p1 выдает "trace: attach: ptrace(PTRACE_SEIZE, 1): Operation not permitted"
+- пробовал менять image на latest и запускать с ключем "--agentless=false", но k8s-ый дебаг такое не умеет
+- добавлял в манифест пода 
+```yaml
+securityContext:
+  capabilities:
+    add: [ "SYS_PTRACE" ]
+```
+ но так и не смог побороть 'ptrace(PTRACE_SEIZE, 1): Operation not permitted'
+ - итак теоретически я знаю как победить ошибку, но практически не могу в gcp создать кластер с версией ниже 1.21
+- установил netperf-operator
+- протестировал скорость с помощью cr.yaml
+- применил Calico NetworkPolicy которая блокирует поды Netperf и убедился, что тест не выполняется
+- устанавливаем iptables-tailer (а также ClusterRole, ServiceAccount и ClusterRoleBinding для него)
+- IPTABLES_LOG_PREFIX переменную выставляем в "calico-packet:"
+- задаем JOURNAL_DIRECTORY - "/var/log/journal"
+- меняем image тэг на virtualshuric/kube-iptables-tailer:8d4296a
+- смотрим event-ы netperf-operator пода и видим "Warning PacketDrop" 
