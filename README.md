@@ -538,3 +538,179 @@ revocation_time_rfc3339    2022-09-17T21:04:11.0922095Z
 - создал StorageClass c именем csi-hostpath-sc
 - создал PVC с именем storage-pvc, у которого storageClassName: csi-hostpath-sc
 - создал Pod с который как Volume использует storage-pvc
+
+## kubernetes-prod
+- настроил кластер с помощью kubeadm
+  - поднял 4 сервера
+```shell
+gcloud compute instances create master-instance --image-family=ubuntu-1804-lts --image-project=ubuntu-os-cloud --zone=us-central1-a --machine-type=n1-standard-2
+
+gcloud compute instances create worker1-instance --image-family=ubuntu-1804-lts --image-project=ubuntu-os-cloud --zone=us-central1-a --machine-type=n1-standard-1
+gcloud compute instances create worker2-instance --image-family=ubuntu-1804-lts --image-project=ubuntu-os-cloud --zone=us-central1-a --machine-type=n1-standard-1
+gcloud compute instances create worker3-instance --image-family=ubuntu-1804-lts --image-project=ubuntu-os-cloud --zone=us-central1-a --machine-type=n1-standard-1
+```
+
+ - отключаем swap (он на самом деле уже отключен google-ом)
+swapoff -a
+disable in /etc/fstab
+
+  - устанавливаем Docker и K8s
+
+```shell
+cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.ipv4.ip_forward                 = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+EOF
+
+sudo sysctl --system
+
+sudo apt-get update && sudo apt-get install -y \
+apt-transport-https ca-certificates curl software-properties-common gnupg2
+
+curl -fsSLk https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+
+sudo apt-get update && sudo apt-get install -y \
+containerd.io=1.2.13-1 \
+docker-ce=5:19.03.8~3-0~ubuntu-$(lsb_release -cs) \
+docker-ce-cli=5:19.03.8~3-0~ubuntu-$(lsb_release -cs)
+
+
+
+# Setup daemon.
+sudo cat > /etc/docker/daemon.json <<EOF
+{
+"exec-opts": ["native.cgroupdriver=systemd"],
+"log-driver": "json-file",
+"log-opts": {
+"max-size": "100m"
+},
+"storage-driver": "overlay2"
+}
+EOF
+
+sudo mkdir -p /etc/systemd/system/docker.service.d
+
+# Restart docker.
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+
+
+
+sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+sudo cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
+deb http://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+
+
+
+sudo apt-get update
+sudo apt-get install -y kubelet=1.17.4-00 kubeadm=1.17.4-00 kubectl=1.17.4-00
+```
+
+  - создаем и конфигурируем кластер
+
+```shell
+sudo kubeadm init --pod-network-cidr=192.168.0.0/24
+
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+sudo kubeadm join 10.128.0.27:6443 --token u09xco.pcznl16btk8otje5 \
+--discovery-token-ca-cert-hash sha256:36fb6369a1eb043fbd144268b19de25028f6a22a804ae3a858a396be1aa938b9
+
+
+aslastin@master-instance:~$ kubectl get nodes
+NAME               STATUS     ROLES    AGE   VERSION
+master-instance    NotReady   master   89s   v1.17.4
+worker1-instance   NotReady   <none>   22s   v1.17.4
+worker2-instance   NotReady   <none>   16s   v1.17.4
+worker3-instance   NotReady   <none>   12s   v1.17.4
+
+
+```
+
+ - включаем сеть с помошью Calico
+```shell
+kubectl apply -f https://docs.projectcalico.org/archive/v3.12/manifests/calico.yaml
+```
+
+ - update:
+
+sudo apt-get update && sudo apt-get install -y kubeadm=1.18.0-00 \
+kubelet=1.18.0-00 kubectl=1.18.0-00
+
+```bash
+aslastin@master-instance:~$ kubectl get nodes
+NAME               STATUS   ROLES    AGE   VERSION
+master-instance    Ready    master   60m   v1.18.0
+worker1-instance   Ready    <none>   59m   v1.17.4
+worker2-instance   Ready    <none>   59m   v1.17.4
+worker3-instance   Ready    <none>   59m   v1.17.4
+```
+sudo kubeadm upgrade plan
+
+```bash
+aslastin@master-instance:~$ sudo kubeadm upgrade plan
+[upgrade/config] Making sure the configuration is correct:
+[upgrade/config] Reading configuration from the cluster...
+[upgrade/config] FYI: You can look at this config file with 'kubectl -n kube-system get cm kubeadm-config -oyaml'
+[preflight] Running pre-flight checks.
+[upgrade] Running cluster health checks
+[upgrade] Fetching available versions to upgrade to
+[upgrade/versions] Cluster version: v1.17.17
+[upgrade/versions] kubeadm version: v1.18.0
+I1001 16:36:52.327161   26538 version.go:252] remote version is much newer: v1.25.2; falling back to: stable-1.18
+[upgrade/versions] Latest stable version: v1.18.20
+[upgrade/versions] Latest stable version: v1.18.20
+[upgrade/versions] Latest version in the v1.17 series: v1.17.17
+[upgrade/versions] Latest version in the v1.17 series: v1.17.17
+
+Components that must be upgraded manually after you have upgraded the control plane with 'kubeadm upgrade apply':
+COMPONENT   CURRENT       AVAILABLE
+Kubelet     3 x v1.17.4   v1.18.20
+            1 x v1.18.0   v1.18.20
+
+Upgrade to the latest stable version:
+
+COMPONENT            CURRENT    AVAILABLE
+API Server           v1.17.17   v1.18.20
+Controller Manager   v1.17.17   v1.18.20
+Scheduler            v1.17.17   v1.18.20
+Kube Proxy           v1.17.17   v1.18.20
+CoreDNS              1.6.5      1.6.7
+Etcd                 3.4.3      3.4.3-0
+
+You can now apply the upgrade by executing the following command:
+
+	kubeadm upgrade apply v1.18.20
+
+Note: Before you can perform this upgrade, you have to update kubeadm to v1.18.20.
+
+```
+
+sudo kubeadm upgrade apply v1.18.0
+
+
+sudo apt-get install -y kubelet=1.18.0-00 kubeadm=1.18.0-00
+
+sudo systemctl restart kubelet
+
+kubectl drain worker1-instance --ignore-daemonsets
+
+kubectl uncordon worker1-instance
